@@ -15,6 +15,8 @@ public class AxiomApplication : ExternalApplication
     public static PushButton PushButton;
     public override void OnStartup()
     {
+        RevitApi.UIControlledApplication = base.Application;
+
         FunctionsAssemblyResolver.RedirectAssembly();
         CreateRibbon();
         Host.StartHost();

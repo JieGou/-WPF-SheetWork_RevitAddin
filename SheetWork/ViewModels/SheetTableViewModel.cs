@@ -15,6 +15,8 @@ using System.Text.RegularExpressions;
 using Wpf.Ui.Common;
 using Wpf.Ui.Contracts;
 using Wpf.Ui.Controls;
+using Nice3point.Revit.Toolkit.External.Handlers;
+using Autodesk.Revit.UI;
 
 namespace SheetWork.ViewModels;
 /// <summary>
@@ -36,6 +38,7 @@ public partial class SheetTableViewModel : ObservableObject
     [ObservableProperty]
     private string _number = String.Empty;
 
+    private readonly AsyncEventHandler<SheetModel> _unRegisterEvent;
     private readonly CopySheetAsyncEvent _copySheetEvent;
     private readonly DeleteSheetAsyncEvent _deleteSheetEvent;
     private readonly RenameSheetAsyncEvent _renameSheetEvent;
@@ -46,6 +49,18 @@ public partial class SheetTableViewModel : ObservableObject
     #endregion
 
     #region Commands
+
+    [RelayCommand]
+    private async void UnRegisterEvent()
+    {
+        await _unRegisterEvent.RaiseAsync(UnRegisterExecute);
+    }
+
+    private SheetModel UnRegisterExecute(UIApplication application)
+    {
+        RevitApi.UIControlledApplication.ControlledApplication.DocumentChanged -= ControlledApplication_DocumentChanged;
+        return default(SheetModel);
+    }
 
     /// <summary>
     /// Export to xlsx
@@ -145,8 +160,9 @@ public partial class SheetTableViewModel : ObservableObject
                 Prefix,
                 Suffix,
                 Number);
-            if(renamedSheet is null) return; // if number is empty
-            var sheetIndex = ProjectSheets.IndexOf(selectedSheetModel);
+            if (renamedSheet is null) return; // if number is empty
+            var sheetIndex = ProjectSheets.IndexOf(ProjectSheets.FirstOrDefault(s => s.ElementId == selectedSheetModel.ElementId));
+            if (sheetIndex == -1) return;
             ProjectSheets?.RemoveAt(sheetIndex);
             ProjectSheets?.Insert(sheetIndex, renamedSheet);
             await _snackbarService.ShowAsync("Success Rename",
@@ -166,17 +182,31 @@ public partial class SheetTableViewModel : ObservableObject
 
     #endregion
 
-    public SheetTableViewModel(ISnackbarService snackbarService, 
-        CopySheetAsyncEvent copySheetEvent, 
-        DeleteSheetAsyncEvent deleteSheetAsyncEvent, 
+    public SheetTableViewModel(ISnackbarService snackbarService,
+        CopySheetAsyncEvent copySheetEvent,
+        DeleteSheetAsyncEvent deleteSheetAsyncEvent,
         RenameSheetAsyncEvent renameSheetAsyncEvent,
         ExportAsync export)
     {
+        _unRegisterEvent = new AsyncEventHandler<SheetModel>();
         _snackbarService = snackbarService;
         _copySheetEvent = copySheetEvent;
         _deleteSheetEvent = deleteSheetAsyncEvent;
         _renameSheetEvent = renameSheetAsyncEvent;
         _export = export;
+
+        RevitApi.UIControlledApplication.ControlledApplication.DocumentChanged += ControlledApplication_DocumentChanged;
+        PopulateDataToProjectSheets();
+    }
+
+    public void ControlledApplication_DocumentChanged(object sender, Autodesk.Revit.DB.Events.DocumentChangedEventArgs e)
+    {
+        PopulateDataToProjectSheets();
+    }
+
+    private void PopulateDataToProjectSheets()
+    {
+        ProjectSheets?.Clear();
 
         var elements = RevitApi.CurrentDocument.GetElements()
             .WhereElementIsViewIndependent()
@@ -185,12 +215,12 @@ public partial class SheetTableViewModel : ObservableObject
         foreach (var element in elements)
         {
             var viewSheet = (ViewSheet)element;
-             
+
             var regex = new Regex(@"\d+"); // matches one or more digits
             MatchEvaluator evaluator = Utils.ToMatch;
             var sheetNum = regex.Replace(viewSheet.SheetNumber, evaluator);
 
-            ProjectSheets.Add(new SheetModel()
+            ProjectSheets?.Add(new SheetModel()
             {
                 Name = viewSheet.Title,
                 Number = sheetNum,

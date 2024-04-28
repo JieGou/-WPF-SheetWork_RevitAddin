@@ -23,8 +23,8 @@ public partial class MainWindow : INavigationWindow
         get;
     }
 
-    public MainWindow(IServiceProvider serviceProvider, 
-        IPageService pageService, 
+    public MainWindow(IServiceProvider serviceProvider,
+        IPageService pageService,
         INavigationService navigationService)
     {
         Wpf.Ui.Application.Current = this;
@@ -56,7 +56,9 @@ public partial class MainWindow : INavigationWindow
         => RootNavigation.SetPageService(pageService);
 
     public void ShowWindow()
-        => Show();
+    {
+        this.Show(Nice3point.Revit.Toolkit.Context.UiApplication.MainWindowHandle);
+    }
 
     public void CloseWindow()
         => Close();

@@ -7,6 +7,10 @@ namespace SheetWork.Core;
 /// </summary>
 public static class RevitApi
 {
+    /// <summary>
+    ///     Reference to the <see cref="Autodesk.Revit.UI.UIControlledApplication" /> that is needed by an external application
+    /// </summary>
+    public static UIControlledApplication UIControlledApplication { get; set; }
     public static UIApplication UiApplication { get; set; }
     public static Autodesk.Revit.ApplicationServices.Application Application => UiApplication.Application;
     public static UIDocument UiDocument => UiApplication.ActiveUIDocument;
